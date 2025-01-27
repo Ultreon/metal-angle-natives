@@ -44,3 +44,43 @@ jobs:
         with:
           name: angle-macos-metal
           path: angle-macos-metal
+  build-macos-metal-arm64:
+    runs-on: macos-14-arm64
+    steps:
+      - name: Delete unnecessary tools folder
+        run: |
+          sudo rm -rf /usr/local/share/dotnet
+          sudo rm -rf /usr/local/share/mono
+      - name: Checkout sources
+        run: |
+          git clone -b chromium/6727 https://github.com/google/angle .
+      - name: Fetch depot_tools
+        run: |
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+      - name: Build ANGLE with Metal backend
+        run: |
+          export PATH="$(pwd)/depot_tools:$PATH"
+          python scripts/bootstrap.py
+          gclient sync
+          gn gen out/Release --args="is_debug=false target_cpu=\"arm64\" angle_build_all=false is_component_build=false angle_enable_d3d9=false angle_enable_d3d11=false angle_enable_gl=false angle_enable_null=false angle_enable_vulkan=false angle_enable_metal=true angle_enable_essl=false angle_enable_glsl=true"
+          autoninja -C out/Release
+      - name: Pack build artifacts
+        run: |
+          mkdir angle-macos-metal
+          mkdir angle-macos-metal/dist
+          rm -rf out/Release/gen
+          rm -rf out/Release/obj
+          rm -rf out/Release/args.gn
+          rm -rf out/Release/build.ninja
+          rm -rf out/Release/build.ninja.d
+          rm -rf out/Release/toolchain.ninja
+          find out/Release -name "*.TOC" -delete
+          mv -f out/Release/* angle-macos-metal/dist/
+          cp -rf include angle-macos-metal/
+          find angle-macos-metal -name ".clang-format" -delete
+          find angle-macos-metal -name "*.md" -delete
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-macos-metal
+          path: angle-macos-metal
